@@ -1,0 +1,6 @@
+[requires]
+# No Qt or GStreamer here due to version mismatch; we'll use local installs
+
+[generators]
+CMakeDeps
+CMakeToolchain

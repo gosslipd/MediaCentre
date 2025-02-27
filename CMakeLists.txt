@@ -1,10 +1,58 @@
+# Force these settings because Qt Creator v15.0.1 (at least) keeps messing these settings up...
+set(CMAKE_GENERATOR "Visual Studio 17 2022" CACHE STRING "CMake Generator" FORCE)
+set(CMAKE_GENERATOR_PLATFORM "x64" CACHE STRING "Generator Platform" FORCE)
+
 cmake_minimum_required(VERSION 3.16)
+
+#set(CMAKE_GENERATOR "Ninja" CACHE STRING "CMake Generator" FORCE)
 
 project(MediaCentre VERSION 0.1 LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick)
+# Define Conan output directory relative to build directory
+set(CONAN_OUTPUT_DIR ${CMAKE_BINARY_DIR}/dependencies)
+
+# Ensure Conan is installed
+find_program(CONAN_EXECUTABLE conan)
+if(NOT CONAN_EXECUTABLE)
+    message(FATAL_ERROR "Conan not found. Please install it with 'pip install conan'.")
+endif()
+
+# Run 'conan install . --build=missing --output=./dependencies'
+execute_process(
+    COMMAND ${CONAN_EXECUTABLE} install . --build=missing --output-folder=${CONAN_OUTPUT_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE CONAN_RESULT
+)
+if(NOT CONAN_RESULT EQUAL 0)
+    message(FATAL_ERROR "Conan install failed with result: ${CONAN_RESULT}")
+endif()
+
+
+# Include Conan-generated toolchain
+include(${CONAN_OUTPUT_DIR}/conan_toolchain.cmake)
+
+# Find Qt
+#find_package(Qt6 6.8.2 REQUIRED COMPONENTS Core Quick Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Multimedia)
+
+# Find GStreamer
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-video-1.0 gstreamer-audio-1.0 gstreamer-app-1.0)
+
+# Explicitly set GStreamer library paths for Windows
+if(WIN32)
+    set(GST_LIBRARY_DIR "C:/gstreamer/1.0/msvc_x86_64/lib" CACHE PATH "Path to GStreamer libraries")
+    link_directories(${GST_LIBRARY_DIR})
+endif()
+
+# Include directories
+include_directories(${GST_INCLUDE_DIRS})
 
 qt_standard_project_setup(REQUIRES 6.5)
 
@@ -30,8 +78,11 @@ set_target_properties(appMediaCentre PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-target_link_libraries(appMediaCentre
-    PRIVATE Qt6::Quick
+target_link_libraries(appMediaCentre PRIVATE
+    Qt6::Core
+    Qt6::Quick
+    Qt6::Multimedia
+    ${GST_LIBRARIES}
 )
 
 include(GNUInstallDirs)
@@ -40,3 +91,9 @@ install(TARGETS appMediaCentre
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# Copy QML files to build directory
+set_target_properties(appMediaCentre PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+file(COPY ${CMAKE_SOURCE_DIR}/main.qml DESTINATION ${CMAKE_BINARY_DIR})
