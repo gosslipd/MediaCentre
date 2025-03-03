@@ -1,10 +1,22 @@
-# Force these settings because Qt Creator v15.0.1 (at least) keeps messing these settings up...
-set(CMAKE_GENERATOR "Visual Studio 17 2022" CACHE STRING "CMake Generator" FORCE)
-set(CMAKE_GENERATOR_PLATFORM "x64" CACHE STRING "Generator Platform" FORCE)
-
 cmake_minimum_required(VERSION 3.16)
+#cmake_minimum_required(VERSION 3.29.3)
 
-#set(CMAKE_GENERATOR "Ninja" CACHE STRING "CMake Generator" FORCE)
+
+
+# Force these settings because Qt Creator v15.0.1 (at least) keeps messing these settings up...
+#if(MSVC)
+#    message(STATUS "MSVC build in ${CMAKE_SOURCE_DIR}")
+#    set(CMAKE_GENERATOR "Visual Studio 17 2022" CACHE STRING "CMake Generator" FORCE)
+#    set(CMAKE_GENERATOR_PLATFORM "x64" CACHE STRING "Generator Platform" FORCE)
+#else()
+#    message(STATUS "non-MSVC build in ${CMAKE_SOURCE_DIR}")
+#    set(CMAKE_GENERATOR "Ninja" CACHE STRING "CMake Generator" FORCE)
+#    # Explicitly unset Visual Studio-specific variables for non-MSVC builds
+#    unset(CMAKE_GENERATOR_PLATFORM CACHE)
+#    unset(CMAKE_GENERATOR_TOOLSET CACHE)
+#endif()
+
+
 
 project(MediaCentre VERSION 0.1 LANGUAGES CXX)
 
@@ -13,6 +25,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
+
+# Force C++17 for Clang (LLVM-MinGW)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # For LLVM-MinGW (Clang-based)
+    #add_compile_options(-std=c++17)
+    # Ensure __cplusplus reflects C++17
+    #add_compile_definitions(_WIN32_CLANG_TEST __cplusplus=201703L)
+endif()
+
+# Diagnostic output
+message(STATUS "C++ standard set to: ${CMAKE_CXX_STANDARD}")
+
+
+## Conan
 
 # Define Conan output directory relative to build directory
 set(CONAN_OUTPUT_DIR ${CMAKE_BINARY_DIR}/dependencies)
@@ -33,9 +59,20 @@ if(NOT CONAN_RESULT EQUAL 0)
     message(FATAL_ERROR "Conan install failed with result: ${CONAN_RESULT}")
 endif()
 
-
 # Include Conan-generated toolchain
 include(${CONAN_OUTPUT_DIR}/conan_toolchain.cmake)
+
+if(MSVC)
+    message(STATUS "MSVC build in ${CMAKE_SOURCE_DIR}")
+    set(CMAKE_GENERATOR "Visual Studio 17 2022" CACHE STRING "CMake Generator" FORCE)
+    set(CMAKE_GENERATOR_PLATFORM "x64" CACHE STRING "Generator Platform" FORCE)
+else()
+    message(STATUS "non-MSVC build in ${CMAKE_SOURCE_DIR}")
+    set(CMAKE_GENERATOR "Ninja" CACHE STRING "CMake Generator" FORCE)
+    # Explicitly unset Visual Studio-specific variables for non-MSVC builds
+    unset(CMAKE_GENERATOR_PLATFORM CACHE)
+    unset(CMAKE_GENERATOR_TOOLSET CACHE)
+endif()
 
 # Find Qt
 #find_package(Qt6 6.8.2 REQUIRED COMPONENTS Core Quick Multimedia)
