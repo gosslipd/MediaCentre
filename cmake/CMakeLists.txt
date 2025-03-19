@@ -90,14 +90,21 @@ endif()
 # Include directories
 include_directories(${GST_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include)
 
+qt_policy(SET QTP0004 NEW)
+
 qt_standard_project_setup(REQUIRES 6.5)
 
-qt_add_executable(appMediaCentre
-    ../src/main.cpp
-    ../resources.qrc
-)
+# Include source and header CMake files
+include(../src/sources.cmake)
+include(../include/include.cmake)
 
-qt_policy(SET QTP0004 NEW)
+message(STATUS "SOURCE_FILES: ${SOURCE_FILES}")
+
+qt_add_executable(appMediaCentre
+    ${HEADER_FILES}
+    ${SOURCE_FILES}
+    ${CMAKE_SOURCE_DIR}/resources.qrc
+)
 
 qt_add_qml_module(appMediaCentre
     URI MediaCentre
@@ -115,6 +122,9 @@ set_target_properties(appMediaCentre PROPERTIES
     WIN32_EXECUTABLE TRUE
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+
+# Add include directory
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Temporary verbose output
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
