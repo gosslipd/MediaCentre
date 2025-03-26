@@ -16,10 +16,17 @@ void WebcamHandler::startStreaming() {
 
     // Pipeline: webcam -> display, mic -> audio
     const char *pipeline_str =
+#ifdef Q_OS_WIN
+        "ksvideosrc ! videoconvert ! video/x-raw,width=640,height=480 ! "
+        "autovideosink name=videosink "
+        "dshowsrc ! audioconvert ! autoaudiosink";
+#else
         "v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,width=640,height=480 ! "
         "autovideosink name=videosink "
         "dshowsrc ! audioconvert ! autoaudiosink";
-    
+#endif
+
+    qDebug() << "Creating pipeline:" << pipeline_str;
     pipeline = gst_parse_launch(pipeline_str, nullptr);
     if (!pipeline) {
         qDebug() << "Failed to create pipeline";
@@ -27,6 +34,14 @@ void WebcamHandler::startStreaming() {
     }
 
     videosink = gst_bin_get_by_name(GST_BIN(pipeline), "videosink");
+    if (!videosink) {
+        qDebug() << "Failed to get videosink element";
+        gst_object_unref(pipeline);
+        pipeline = nullptr;
+        return;
+    }
+
+    qDebug() << "Starting pipeline...";
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         qDebug() << "Failed to start pipeline";
@@ -35,6 +50,7 @@ void WebcamHandler::startStreaming() {
         return;
     }
 
+    qDebug() << "Pipeline started successfully";
     m_isStreaming = true;
     emit isStreamingChanged();
 }
@@ -48,6 +64,7 @@ void WebcamHandler::stopStreaming() {
     m_isStreaming = false;
     m_isRecording = false;
     emit isStreamingChanged();
+    emit isRecordingChanged();
 }
 
 void WebcamHandler::startRecording() {
@@ -55,10 +72,16 @@ void WebcamHandler::startRecording() {
 
     stopStreaming(); // Restart with recording pipeline
     const char *pipeline_str =
+#ifdef Q_OS_WIN
+        "ksvideosrc ! videoconvert ! video/x-raw,width=640,height=480 ! "
+        "x264enc ! mp4mux name=mux ! filesink location=recording.mp4 "
+        "dshowsrc ! audioconvert ! avenc_aac ! mux.";
+#else
         "v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,width=640,height=480 ! "
         "x264enc ! mp4mux name=mux ! filesink location=recording.mp4 "
         "dshowsrc ! audioconvert ! avenc_aac ! mux.";
-    
+#endif
+
     pipeline = gst_parse_launch(pipeline_str, nullptr);
     if (!pipeline) {
         qDebug() << "Failed to create recording pipeline";
@@ -76,12 +99,14 @@ void WebcamHandler::startRecording() {
     m_isStreaming = true;
     m_isRecording = true;
     emit isStreamingChanged();
+    emit isRecordingChanged();
 }
 
 void WebcamHandler::stopRecording() {
     if (!m_isRecording) return;
     stopStreaming(); // Stops and saves the file
     m_isRecording = false;
+    emit isRecordingChanged();
 }
 
 void WebcamHandler::playback(const QString &filePath) {

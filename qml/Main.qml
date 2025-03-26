@@ -8,36 +8,48 @@ ApplicationWindow {
     visible: true
     width: 800
     height: 600
-    title: "Webcam Streamer"
+    title: "Media Centre"
 
     WebcamHandler {
-        id: webcamHandler
+        id: webcam
+        onIsStreamingChanged: {
+            console.log("Streaming state:", webcam.isStreaming)
+        }
+        onIsRecordingChanged: {  // New handler
+            console.log("Recording state:", webcam.isRecording)
+        }
     }
 
     Column {
         anchors.centerIn: parent
         spacing: 10
 
+        Text {
+             id: statusText
+             text: "Streaming: " + (webcam.isStreaming ? "Yes" : "No") +
+                   " | Recording: " + (webcam.isRecording ? "Yes" : "No")
+        }
+
         Button {
-            text: webcamHandler.isStreaming ? "Stop Streaming" : "Start Streaming"
-            onClicked: webcamHandler.isStreaming ? webcamHandler.stopStreaming() : webcamHandler.startStreaming()
+            text: webcam.isStreaming ? "Stop Streaming" : "Start Streaming"
+            onClicked: webcam.isStreaming ? webcam.stopStreaming() : webcam.startStreaming()
         }
 
         Button {
             text: "Start Recording"
-            enabled: webcamHandler.isStreaming && !webcamHandler.isRecording
-            onClicked: webcamHandler.startRecording()
+            enabled: webcam.isStreaming && !webcam.isRecording
+            onClicked: webcam.startRecording()
         }
 
         Button {
             text: "Stop Recording"
-            enabled: webcamHandler.isRecording
-            onClicked: webcamHandler.stopRecording()
+            enabled: webcam.isRecording
+            onClicked: webcam.stopRecording()
         }
 
         Button {
             text: "Playback Recording"
-            onClicked: webcamHandler.playback("recording.mp4")
+            onClicked: webcam.playback("recording.mp4")
         }
     }
 }
