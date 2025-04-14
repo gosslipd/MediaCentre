@@ -1,55 +1,62 @@
+
 import QtQuick 6.8
 import QtQuick.Controls 6.8
-import QtMultimedia 6.8
-
 import MediaCentre 1.0
 
 ApplicationWindow {
     visible: true
     width: 800
     height: 600
-    title: "Media Centre"
+    title: "Webcam Streamer"
 
     WebcamHandler {
-        id: webcam
+        id: webcamHandler
         onIsStreamingChanged: {
-            console.log("Streaming state:", webcam.isStreaming)
+            console.log("Streaming state:", webcamHandler.isStreaming)
         }
-        onIsRecordingChanged: {  // New handler
-            console.log("Recording state:", webcam.isRecording)
+        onIsRecordingChanged: {
+            console.log("Recording state:", webcamHandler.isRecording)
+        }
+        Component.onCompleted: {
+            webcamHandler.setVideoItem(videoItem)
         }
     }
 
     Column {
-        anchors.centerIn: parent
+        anchors.fill: parent
         spacing: 10
 
-        Text {
-             id: statusText
-             text: "Streaming: " + (webcam.isStreaming ? "Yes" : "No") +
-                   " | Recording: " + (webcam.isRecording ? "Yes" : "No")
+        VideoItem {
+            id: videoItem
+            width: parent.width
+            height: parent.height - 100
         }
 
-        Button {
-            text: webcam.isStreaming ? "Stop Streaming" : "Start Streaming"
-            onClicked: webcam.isStreaming ? webcam.stopStreaming() : webcam.startStreaming()
-        }
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 10
 
-        Button {
-            text: "Start Recording"
-            enabled: webcam.isStreaming && !webcam.isRecording
-            onClicked: webcam.startRecording()
-        }
+            Button {
+                text: webcamHandler.isStreaming ? "Stop Streaming" : "Start Streaming"
+                onClicked: webcamHandler.isStreaming ? webcamHandler.stopStreaming() : webcamHandler.startStreaming()
+            }
 
-        Button {
-            text: "Stop Recording"
-            enabled: webcam.isRecording
-            onClicked: webcam.stopRecording()
-        }
+            Button {
+                text: "Start Recording"
+                enabled: webcamHandler.isStreaming && !webcamHandler.isRecording
+                onClicked: webcamHandler.startRecording()
+            }
 
-        Button {
-            text: "Playback Recording"
-            onClicked: webcam.playback("recording.mp4")
+            Button {
+                text: "Stop Recording"
+                enabled: webcamHandler.isRecording
+                onClicked: webcamHandler.stopRecording()
+            }
+
+            Button {
+                text: "Playback Recording"
+                onClicked: webcamHandler.playback("recording.mp4")
+            }
         }
     }
 }

@@ -61,7 +61,7 @@ if(WIN32 AND MSVC)
 endif()
 
 # Find Qt
-find_package(Qt6 REQUIRED COMPONENTS Core Quick Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick)
 
 # Set PKG_CONFIG_PATH for GStreamer
 if(WIN32)
@@ -133,8 +133,8 @@ endif()
 
 target_link_libraries(appMediaCentre PRIVATE
     Qt6::Core
+    Qt6::Gui
     Qt6::Quick
-    Qt6::Multimedia
     ${GST_LIBRARIES}
     # Add MinGW runtime libs for Clang
     $<$<CXX_COMPILER_ID:Clang>:${MINGW_LIB_DIR}/libmingw32.a>
@@ -146,4 +146,34 @@ install(TARGETS appMediaCentre
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# Define paths (adjust these based on your system)
+set(QT_DIR "C:/Qt/6.8.2/msvc2022_64")
+set(GSTREAMER_DIR "C:/gstreamer/1.0/msvc_x86_64")
+set(QML_SOURCE_DIR "${CMAKE_SOURCE_DIR}/qml")
+
+# --- Deploy Qt DLLs with windeployqt ---
+add_custom_command(TARGET appMediaCentre POST_BUILD
+    COMMAND ${QT_DIR}/bin/windeployqt.exe
+        --qmldir ${QML_SOURCE_DIR}
+        $<TARGET_FILE:appMediaCentre>
+    COMMENT "Deploying Qt dependencies with windeployqt"
+    WORKING_DIRECTORY $<TARGET_FILE_DIR:appMediaCentre>
+)
+
+# --- Copy GStreamer Core DLLs ---
+add_custom_command(TARGET appMediaCentre POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${GSTREAMER_DIR}/bin"
+        $<TARGET_FILE_DIR:appMediaCentre>
+    COMMENT "Copying GStreamer core DLLs to Release directory"
+)
+
+# --- Copy GStreamer Plugins ---
+add_custom_command(TARGET appMediaCentre POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${GSTREAMER_DIR}/lib/gstreamer-1.0"
+        $<TARGET_FILE_DIR:appMediaCentre>/gstreamer-1.0
+    COMMENT "Copying GStreamer plugins to Release/gstreamer-1.0 directory"
 )

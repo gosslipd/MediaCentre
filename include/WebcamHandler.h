@@ -4,6 +4,8 @@
 #include <QObject>
 #include <gst/gst.h>
 
+class VideoItem;
+
 class WebcamHandler : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool isStreaming READ isStreaming NOTIFY isStreamingChanged)
@@ -15,6 +17,8 @@ public:
 
     bool isStreaming() const { return m_isStreaming; }
     bool isRecording() const { return m_isRecording; }
+
+    Q_INVOKABLE void setVideoItem(VideoItem *item);
 
 public slots:
     void startStreaming();
@@ -28,8 +32,11 @@ signals:
     void isRecordingChanged();
 
 private:
+    static GstFlowReturn newSampleCallback(GstElement *sink, WebcamHandler *handler);
+
     GstElement *pipeline;
-    GstElement *videosink;
+    GstElement *appsink;
+    VideoItem *m_videoItem;
     bool m_isStreaming = false;
     bool m_isRecording = false;
 };
