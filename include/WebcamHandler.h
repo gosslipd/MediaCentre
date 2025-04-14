@@ -31,7 +31,6 @@ public slots:
 signals:
     void isStreamingChanged();
     void isRecordingChanged();
-    void streamingStateChanged(bool streaming);
 
 private:
     static GstFlowReturn onNewSample(GstAppSink *sink, gpointer user_data);

@@ -65,7 +65,8 @@ void WebcamHandler::startStreaming() {
     }
 
     qDebug() << "Pipeline started successfully";
-    emit streamingStateChanged(true);
+    m_isStreaming = true;
+    emit isStreamingChanged();
 }
 
 GstFlowReturn WebcamHandler::onNewSample(GstAppSink *sink, gpointer user_data) {
