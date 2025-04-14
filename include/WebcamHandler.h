@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <gst/gst.h>
+#include <gst/app/gstappsink.h>
 
 class VideoItem;
 
@@ -30,12 +31,14 @@ public slots:
 signals:
     void isStreamingChanged();
     void isRecordingChanged();
+    void streamingStateChanged(bool streaming);
 
 private:
-    static GstFlowReturn newSampleCallback(GstElement *sink, WebcamHandler *handler);
+    static GstFlowReturn onNewSample(GstAppSink *sink, gpointer user_data);
+    void processSample(GstSample *sample);
 
     GstElement *pipeline;
-    GstElement *appsink;
+    GstAppSink *appsink;
     VideoItem *m_videoItem;
     bool m_isStreaming = false;
     bool m_isRecording = false;

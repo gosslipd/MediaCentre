@@ -4,21 +4,21 @@
 #include <QQuickItem>
 #include <QSGNode>
 #include <QMutex>
+#include <QImage>
 #include <gst/gst.h>
 
 class VideoItem : public QQuickItem {
     Q_OBJECT
 public:
     explicit VideoItem(QQuickItem *parent = nullptr);
-    ~VideoItem();
 
-    void setFrame(GstSample *sample);
+    void updateFrame(const uchar *data, int width, int height);
 
 protected:
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *) override;
 
 private:
-    GstSample *m_sample;
+    QImage m_image;
     QMutex m_mutex;
 };
 
