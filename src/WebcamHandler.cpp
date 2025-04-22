@@ -1,17 +1,16 @@
 #include "WebcamHandler.h"
 #include "VideoItem.h"
 #include <gst/gst.h>
-#include <gst/app/gstappsink.h>  // Added for GST_APP_SINK and gst_app_sink_pull_sample
-#include <gst/video/video.h> // Added for GstVideoInfo
+#include <gst/app/gstappsink.h>
+#include <gst/video/video.h>
 #include <QDebug>
 
 WebcamHandler::WebcamHandler(QObject *parent)
     : QObject(parent), pipeline(nullptr), appsink(nullptr), m_videoItem(nullptr) {
-    //g_setenv("GST_DEBUG", "4", TRUE);
     g_setenv("GST_PLUGIN_PATH", "C:/gstreamer/1.0/msvc_x86_64/lib/gstreamer-1.0;C:/CMakeBuildFolder/MediaCentre/build/Desktop_Qt_6_8_2_MSVC2022_64bit-Release/Release/gstreamer-1.0", TRUE);
-    g_setenv("GST_PLUGIN_SYSTEM_PATH", "", TRUE); // Disable system-wide plugin scanning (removes warnings)
-    g_setenv("GI_TYPELIB_PATH", "", TRUE); // Disable GObject introspection (removes warnings)
-    g_setenv("GST_PLUGIN_BLACKLIST", "python", TRUE); // Blacklist python plugin (removes warnings)
+    g_setenv("GST_PLUGIN_SYSTEM_PATH", "", TRUE);
+    g_setenv("GI_TYPELIB_PATH", "", TRUE);
+    g_setenv("GST_PLUGIN_BLACKLIST", "python", TRUE);
     gst_init(nullptr, nullptr);
 }
 
@@ -27,14 +26,13 @@ void WebcamHandler::setVideoItem(VideoItem *item) {
 void WebcamHandler::startStreaming() {
     const char *pipeline_str =
 #ifdef Q_OS_WIN
-        "mfvideosrc ! videoscale ! videoconvert ! video/x-raw,format=RGB,width=640,height=480 ! "
-        "appsink name=appsink emit-signals=true"
+        "mfvideosrc device-index=1 ! video/x-raw,format=YUY2,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true"
 #else
-        "v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=RGB,width=640,height=480 ! "
-        "appsink name=appsink emit-signals=true"
+        "v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=RGB,width=640,height=480 ! queue ! appsink name=appsink emit-signals=true"
 #endif
         ;
 
+    qDebug() << "Creating streaming pipeline:" << pipeline_str;
     GError *error = nullptr;
     pipeline = gst_parse_launch(pipeline_str, &error);
     if (!pipeline || error) {
@@ -58,13 +56,140 @@ void WebcamHandler::startStreaming() {
     if (ret == GST_STATE_CHANGE_FAILURE) {
         qCritical() << "Failed to start pipeline";
         gst_object_unref(pipeline);
-        pipeline = nullptr;
         gst_object_unref(appsink);
+        pipeline = nullptr;
         appsink = nullptr;
         return;
     }
 
     qDebug() << "Pipeline started successfully";
+    m_isStreaming = true;
+    emit isStreamingChanged();
+}
+
+void WebcamHandler::stopStreaming() {
+    if (!m_isStreaming) return;
+
+    qDebug() << "Stopping streaming...";
+    if (pipeline) {
+        gst_element_set_state(pipeline, GST_STATE_NULL);
+        gst_object_unref(pipeline);
+        pipeline = nullptr;
+    }
+    if (appsink) {
+        gst_object_unref(appsink);
+        appsink = nullptr;
+    }
+    m_isStreaming = false;
+    m_isRecording = false;
+    emit isStreamingChanged();
+    emit isRecordingChanged();
+}
+
+void WebcamHandler::startRecording() {
+    if (!m_isStreaming || m_isRecording) return;
+
+    stopStreaming();
+    const char *pipeline_str =
+#ifdef Q_OS_WIN
+        "mfvideosrc device-index=1 ! video/x-raw,format=YUY2,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=I420 ! "
+        "tee name=t ! queue leaky=downstream ! x264enc tune=zerolatency key-int-max=30 ! matroskamux name=mux ! filesink location=recording.mkv "
+        "t. ! queue ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true "
+        "wasapisrc device=\"\\{0.0.1.00000000\\}.\\{684e7236-cfce-4757-9125-d37152c0079b\\}\" ! audioconvert ! avenc_aac bitrate=128000 ! queue ! mux."
+#else
+        "v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480 ! "
+        "tee name=t ! queue leaky=downstream ! x264enc tune=zerolatency key-int-max=30 ! matroskamux name=mux ! filesink location=recording.mkv "
+        "t. ! queue ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true "
+        "alsasrc ! audioconvert ! avenc_aac bitrate=128000 ! queue ! mux."
+#endif
+        ;
+
+    qDebug() << "Creating recording pipeline:" << pipeline_str;
+    GError *error = nullptr;
+    pipeline = gst_parse_launch(pipeline_str, &error);
+    if (!pipeline || error) {
+        qCritical() << "Failed to create recording pipeline:" << (error ? error->message : "Unknown error");
+        if (error) g_error_free(error);
+        return;
+    }
+
+    GstElement *sink = gst_bin_get_by_name(GST_BIN(pipeline), "appsink");
+    if (!sink) {
+        qCritical() << "Failed to get appsink";
+        gst_object_unref(pipeline);
+        pipeline = nullptr;
+        return;
+    }
+    appsink = GST_APP_SINK(sink);
+
+    g_signal_connect(appsink, "new-sample", G_CALLBACK(WebcamHandler::onNewSample), this);
+
+    GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        qCritical() << "Failed to start recording";
+        gst_object_unref(pipeline);
+        gst_object_unref(appsink);
+        pipeline = nullptr;
+        appsink = nullptr;
+        return;
+    }
+
+    qDebug() << "Recording started successfully";
+    m_isStreaming = true;
+    m_isRecording = true;
+    emit isStreamingChanged();
+    emit isRecordingChanged();
+}
+
+void WebcamHandler::stopRecording() {
+    if (!m_isRecording) return;
+    stopStreaming();
+    m_isRecording = false;
+    emit isRecordingChanged();
+}
+
+void WebcamHandler::playback(const QString &filePath) {
+    stopStreaming();
+
+    QString pipeline_str = QString(
+#ifdef Q_OS_WIN
+                               "filesrc location=%1 ! matroskademux ! decodebin ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true"
+#else
+                               "filesrc location=%1 ! matroskademux ! decodebin ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true"
+#endif
+                               ).arg(filePath);
+
+    qDebug() << "Creating playback pipeline:" << pipeline_str;
+    GError *error = nullptr;
+    pipeline = gst_parse_launch(pipeline_str.toUtf8().constData(), &error);
+    if (!pipeline || error) {
+        qCritical() << "Failed to create playback pipeline:" << (error ? error->message : "Unknown error");
+        if (error) g_error_free(error);
+        return;
+    }
+
+    GstElement *sink = gst_bin_get_by_name(GST_BIN(pipeline), "appsink");
+    if (!sink) {
+        qCritical() << "Failed to get appsink";
+        gst_object_unref(pipeline);
+        pipeline = nullptr;
+        return;
+    }
+    appsink = GST_APP_SINK(sink);
+
+    g_signal_connect(appsink, "new-sample", G_CALLBACK(WebcamHandler::onNewSample), this);
+
+    GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        qCritical() << "Failed to start playback";
+        gst_object_unref(pipeline);
+        gst_object_unref(appsink);
+        pipeline = nullptr;
+        appsink = nullptr;
+        return;
+    }
+
+    qDebug() << "Playback started successfully";
     m_isStreaming = true;
     emit isStreamingChanged();
 }
@@ -112,8 +237,8 @@ void WebcamHandler::processSample(GstSample *sample) {
 
     // Expect RGB888: 3 bytes per pixel
     qint64 expected_size = static_cast<qint64>(vinfo.width) * vinfo.height * 3;
-    //qDebug() << "Buffer size:" << map.size << ", expected:" << expected_size
-    //         << ", format:" << vinfo.finfo->name << ", width:" << vinfo.width << ", height:" << vinfo.height;
+    qDebug() << "Buffer size:" << map.size << ", expected:" << expected_size
+             << ", format:" << vinfo.finfo->name << ", width:" << vinfo.width << ", height:" << vinfo.height;
     if (map.size < expected_size) {
         qWarning() << "Buffer size too small:" << map.size << ", expected:" << expected_size;
         gst_buffer_unmap(buffer, &map);
@@ -122,124 +247,10 @@ void WebcamHandler::processSample(GstSample *sample) {
     }
 
     if (m_videoItem) {
-        //qDebug() << "Updating frame: width=" << vinfo.width << ", height=" << vinfo.height;
+        qDebug() << "Updating frame: width=" << vinfo.width << ", height=" << vinfo.height;
         m_videoItem->updateFrame(map.data, vinfo.width, vinfo.height);
     }
 
     gst_buffer_unmap(buffer, &map);
     gst_sample_unref(sample);
-}
-
-void WebcamHandler::stopStreaming() {
-    if (!m_isStreaming) return;
-
-    qDebug() << "Stopping streaming...";
-    if (pipeline) {
-        gst_element_set_state(pipeline, GST_STATE_NULL);
-        gst_object_unref(pipeline);
-        pipeline = nullptr;
-    }
-    m_isStreaming = false;
-    m_isRecording = false;
-    emit isStreamingChanged();
-    emit isRecordingChanged();
-}
-
-void WebcamHandler::startRecording() {
-    if (!m_isStreaming || m_isRecording) return;
-
-    stopStreaming();
-    const char *pipeline_str =
-#ifdef Q_OS_WIN
-        "mfvideosrc ! videoscale ! videoconvert ! video/x-raw,format=RGB,width=640,height=480 ! "
-        "tee name=t ! queue ! x264enc ! mp4mux name=mux ! filesink location=recording.mp4 "
-        "t. ! queue ! appsink name=appsink emit-signals=true "
-        "wasapisrc ! audioconvert ! avenc_aac ! mux.";
-#else
-        "v4l2src device=/dev/video0 ! videoscale ! videoconvert ! video/x-raw,format=RGB,width=640,height=480 ! "
-        "tee name=t ! queue ! x264enc ! mp4mux name=mux ! filesink location=recording.mp4 "
-        "t. ! queue ! appsink name=appsink emit-signals=true "
-        "wasapisrc ! audioconvert ! avenc_aac ! mux.";
-#endif
-
-    qDebug() << "Creating recording pipeline:" << pipeline_str;
-    pipeline = gst_parse_launch(pipeline_str, nullptr);
-    if (!pipeline) {
-        qDebug() << "Failed to create recording pipeline";
-        return;
-    }
-
-    GstElement *sink = gst_bin_get_by_name(GST_BIN(pipeline), "appsink");
-    appsink = GST_APP_SINK(sink);
-    if (!appsink) {
-        qDebug() << "Failed to get appsink element";
-        gst_object_unref(pipeline);
-        pipeline = nullptr;
-        return;
-    }
-
-    g_signal_connect(appsink, "new-sample", G_CALLBACK(WebcamHandler::onNewSample), this);
-
-    GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
-    if (ret == GST_STATE_CHANGE_FAILURE) {
-        qDebug() << "Failed to start recording";
-        gst_object_unref(pipeline);
-        pipeline = nullptr;
-        return;
-    }
-
-    m_isStreaming = true;
-    m_isRecording = true;
-    emit isStreamingChanged();
-    emit isRecordingChanged();
-}
-
-void WebcamHandler::stopRecording() {
-    if (!m_isRecording) return;
-    stopStreaming();
-    m_isRecording = false;
-    emit isRecordingChanged();
-}
-
-void WebcamHandler::playback(const QString &filePath) {
-    stopStreaming();
-
-    QString pipeline_str = QString(
-#ifdef Q_OS_WIN
-                               "filesrc location=%1 ! qtdemux ! decodebin ! videoconvert ! video/x-raw,format=RGB ! "
-                               "appsink name=appsink emit-signals=true"
-#else
-                               "filesrc location=%1 ! qtdemux ! decodebin ! videoconvert ! video/x-raw,format=RGB ! "
-                               "appsink name=appsink emit-signals=true"
-#endif
-                               ).arg(filePath);
-
-    qDebug() << "Creating playback pipeline:" << pipeline_str;
-    pipeline = gst_parse_launch(pipeline_str.toUtf8().constData(), nullptr);
-    if (!pipeline) {
-        qDebug() << "Failed to create playback pipeline";
-        return;
-    }
-
-    GstElement *sink = gst_bin_get_by_name(GST_BIN(pipeline), "appsink");
-    appsink = GST_APP_SINK(sink);
-    if (!appsink) {
-        qDebug() << "Failed to get appsink element";
-        gst_object_unref(pipeline);
-        pipeline = nullptr;
-        return;
-    }
-
-    g_signal_connect(appsink, "new-sample", G_CALLBACK(WebcamHandler::onNewSample), this);
-
-    GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
-    if (ret == GST_STATE_CHANGE_FAILURE) {
-        qDebug() << "Failed to start playback";
-        gst_object_unref(pipeline);
-        pipeline = nullptr;
-        return;
-    }
-
-    m_isStreaming = true;
-    emit isStreamingChanged();
 }

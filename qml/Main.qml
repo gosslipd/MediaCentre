@@ -1,6 +1,5 @@
-
-import QtQuick 6.8
-import QtQuick.Controls 6.8
+import QtQuick
+import QtQuick.Controls
 import MediaCentre 1.0
 
 ApplicationWindow {
@@ -55,7 +54,7 @@ ApplicationWindow {
 
             Button {
                 text: "Playback Recording"
-                onClicked: webcamHandler.playback("recording.mp4")
+                onClicked: webcamHandler.playback("recording.mkv")
             }
         }
     }
