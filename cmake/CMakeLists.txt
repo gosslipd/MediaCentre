@@ -1,4 +1,3 @@
-
 # Conan integration
 
 set(CONAN_OUTPUT_DIR ${CMAKE_BINARY_DIR}/dependencies)
@@ -56,7 +55,7 @@ message(STATUS "C++ standard set to: ${CMAKE_CXX_STANDARD}")
 
 # Set Qt6 path for MSVC
 if(WIN32 AND MSVC)
-	message(STATUS "Defining Qt6_DIR")
+    message(STATUS "Defining Qt6_DIR")
     set(Qt6_DIR "C:/Qt/6.8.2/msvc2022_64/lib/cmake/Qt6" CACHE PATH "Path to Qt6 CMake config")
 endif()
 
@@ -89,6 +88,14 @@ endif()
 
 # Include directories
 include_directories(${GST_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include)
+
+# Explicitly set Windows SDK library path to ensure Mf.lib is found
+if(WIN32)
+    # Adjust the SDK version to match your installed version (e.g., 10.0.22621.0)
+    set(WINDOWS_SDK_LIB_PATH "C:/Program Files (x86)/Windows Kits/10/Lib/10.0.22621.0/um/x64")
+    link_directories(${WINDOWS_SDK_LIB_PATH})
+    message(STATUS "Windows SDK library path: ${WINDOWS_SDK_LIB_PATH}")
+endif()
 
 qt_policy(SET QTP0004 NEW)
 
@@ -131,6 +138,36 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -v" CACHE STRING "Linker flags" FORCE)
 endif()
 
+# Verify that Media Foundation libraries are found
+find_library(MF_LIB NAMES Mf mf PATHS ${WINDOWS_SDK_LIB_PATH})
+find_library(MFPLAT_LIB NAMES mfplat Mfplat PATHS ${WINDOWS_SDK_LIB_PATH})
+find_library(MFUUID_LIB NAMES mfuuid Mfuuid PATHS ${WINDOWS_SDK_LIB_PATH})
+find_library(OLE32_LIB NAMES ole32 Ole32 PATHS ${WINDOWS_SDK_LIB_PATH})
+
+if(MF_LIB)
+    message(STATUS "Found Mf library: ${MF_LIB}")
+else()
+    message(WARNING "Mf library not found in ${WINDOWS_SDK_LIB_PATH}")
+endif()
+
+if(MFPLAT_LIB)
+    message(STATUS "Found mfplat library: ${MFPLAT_LIB}")
+else()
+    message(WARNING "mfplat library not found in ${WINDOWS_SDK_LIB_PATH}")
+endif()
+
+if(MFUUID_LIB)
+    message(STATUS "Found mfuuid library: ${MFUUID_LIB}")
+else()
+    message(WARNING "mfuuid library not found in ${WINDOWS_SDK_LIB_PATH}")
+endif()
+
+if(OLE32_LIB)
+    message(STATUS "Found ole32 library: ${OLE32_LIB}")
+else()
+    message(WARNING "ole32 library not found in ${WINDOWS_SDK_LIB_PATH}")
+endif()
+
 target_link_libraries(appMediaCentre PRIVATE
     Qt6::Core
     Qt6::Gui
@@ -139,6 +176,11 @@ target_link_libraries(appMediaCentre PRIVATE
     # Add MinGW runtime libs for Clang
     $<$<CXX_COMPILER_ID:Clang>:${MINGW_LIB_DIR}/libmingw32.a>
     $<$<CXX_COMPILER_ID:Clang>:${MINGW_LIB_DIR}/libssp.a>
+    # Add Media Foundation and COM libraries for webcam enumeration
+    Mf
+    mfplat
+    mfuuid
+    ole32
 )
 
 include(GNUInstallDirs)

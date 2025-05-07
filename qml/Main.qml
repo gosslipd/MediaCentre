@@ -28,12 +28,22 @@ ApplicationWindow {
         VideoItem {
             id: videoItem
             width: parent.width
-            height: parent.height - 100
+            height: parent.height - 150
         }
 
         Row {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 10
+
+            ComboBox {
+                id: webcamCombo
+                model: webcamHandler.webcamList
+                currentIndex: webcamHandler.selectedWebcamIndex
+                onCurrentIndexChanged: {
+                    webcamHandler.setSelectedWebcamIndex(currentIndex)
+                }
+                width: 200
+            }
 
             Button {
                 text: webcamHandler.isStreaming ? "Stop Streaming" : "Start Streaming"

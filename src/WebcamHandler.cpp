@@ -4,29 +4,100 @@
 #include <gst/app/gstappsink.h>
 #include <gst/video/video.h>
 #include <QDebug>
+#ifdef Q_OS_WIN
+#include <mfapi.h>
+#include <mfidl.h>
+#include <mfreadwrite.h>
+#include <combaseapi.h>
+#endif
 
 WebcamHandler::WebcamHandler(QObject *parent)
-    : QObject(parent), pipeline(nullptr), appsink(nullptr), m_videoItem(nullptr) {
+    : QObject(parent), pipeline(nullptr), appsink(nullptr), m_videoItem(nullptr), m_selectedWebcamIndex(0) {
+    //g_setenv("GST_DEBUG", "4", TRUE);
     g_setenv("GST_PLUGIN_PATH", "C:/gstreamer/1.0/msvc_x86_64/lib/gstreamer-1.0;C:/CMakeBuildFolder/MediaCentre/build/Desktop_Qt_6_8_2_MSVC2022_64bit-Release/Release/gstreamer-1.0", TRUE);
-    g_setenv("GST_PLUGIN_SYSTEM_PATH", "", TRUE);
-    g_setenv("GI_TYPELIB_PATH", "", TRUE);
-    g_setenv("GST_PLUGIN_BLACKLIST", "python", TRUE);
+    g_setenv("GST_PLUGIN_SYSTEM_PATH", "", TRUE); // Disable system-wide plugin scanning (removes warnings)
+    g_setenv("GI_TYPELIB_PATH", "", TRUE); // Disable GObject introspection (removes warnings)
+    g_setenv("GST_PLUGIN_BLACKLIST", "python", TRUE); // Blacklist python plugin (removes warnings)
     gst_init(nullptr, nullptr);
+#ifdef Q_OS_WIN
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    MFStartup(MF_VERSION, MFSTARTUP_FULL);
+#endif
+    enumerateWebcams();
 }
 
 WebcamHandler::~WebcamHandler() {
     stopStreaming();
     gst_deinit();
+#ifdef Q_OS_WIN
+    MFShutdown();
+    CoUninitialize();
+#endif
 }
 
 void WebcamHandler::setVideoItem(VideoItem *item) {
     m_videoItem = item;
 }
 
+void WebcamHandler::enumerateWebcams() {
+#ifdef Q_OS_WIN
+    m_webcamList.clear();
+    IMFAttributes *pAttributes = nullptr;
+    IMFActivate **ppDevices = nullptr;
+    UINT32 count = 0;
+
+    HRESULT hr = MFCreateAttributes(&pAttributes, 1);
+    if (SUCCEEDED(hr)) {
+        hr = pAttributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE, MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
+    }
+
+    if (SUCCEEDED(hr)) {
+        hr = MFEnumDeviceSources(pAttributes, &ppDevices, &count);
+    }
+
+    if (SUCCEEDED(hr)) {
+        for (UINT32 i = 0; i < count; ++i) {
+            WCHAR *name = nullptr;
+            hr = ppDevices[i]->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, &name, nullptr);
+            if (SUCCEEDED(hr)) {
+                m_webcamList.append(QString::fromWCharArray(name));
+                CoTaskMemFree(name);
+            }
+            ppDevices[i]->Release();
+        }
+        CoTaskMemFree(ppDevices);
+    }
+
+    if (pAttributes) {
+        pAttributes->Release();
+    }
+
+    if (m_webcamList.isEmpty()) {
+        m_webcamList.append("No webcams detected");
+        m_selectedWebcamIndex = -1;
+    } else {
+        m_selectedWebcamIndex = 0;
+    }
+
+    qDebug() << "Detected webcams:" << m_webcamList;
+    emit webcamListChanged();
+#else
+    m_webcamList = QStringList{"Default Webcam"};
+    m_selectedWebcamIndex = 0;
+    emit webcamListChanged();
+#endif
+}
+
 void WebcamHandler::startStreaming() {
+    if (m_selectedWebcamIndex < 0) {
+        qCritical() << "No valid webcam selected";
+        return;
+    }
+
     const char *pipeline_str =
 #ifdef Q_OS_WIN
-        "mfvideosrc device-index=1 ! video/x-raw,format=YUY2,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true"
+        QString("mfvideosrc device-index=%1 ! video/x-raw,format=YUY2,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true")
+            .arg(m_selectedWebcamIndex).toUtf8().constData()
 #else
         "v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=RGB,width=640,height=480 ! queue ! appsink name=appsink emit-signals=true"
 #endif
@@ -92,10 +163,11 @@ void WebcamHandler::startRecording() {
     stopStreaming();
     const char *pipeline_str =
 #ifdef Q_OS_WIN
-        "mfvideosrc device-index=1 ! video/x-raw,format=YUY2,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=I420 ! "
-        "tee name=t ! queue leaky=downstream ! x264enc tune=zerolatency key-int-max=30 ! matroskamux name=mux ! filesink location=recording.mkv "
-        "t. ! queue ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true "
-        "wasapisrc device=\"\\{0.0.1.00000000\\}.\\{684e7236-cfce-4757-9125-d37152c0079b\\}\" ! audioconvert ! avenc_aac bitrate=128000 ! queue ! mux."
+        QString("mfvideosrc device-index=%1 ! video/x-raw,format=YUY2,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=I420 ! "
+                "tee name=t ! queue leaky=downstream ! x264enc tune=zerolatency key-int-max=30 ! matroskamux name=mux ! filesink location=recording.mkv "
+                "t. ! queue ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true "
+                "wasapisrc device=\"\\{0.0.1.00000000\\}.\\{684e7236-cfce-4757-9125-d37152c0079b\\}\" ! audioconvert ! avenc_aac bitrate=128000 ! queue ! mux.")
+            .arg(m_selectedWebcamIndex).toUtf8().constData()
 #else
         "v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480 ! "
         "tee name=t ! queue leaky=downstream ! x264enc tune=zerolatency key-int-max=30 ! matroskamux name=mux ! filesink location=recording.mkv "
@@ -194,6 +266,25 @@ void WebcamHandler::playback(const QString &filePath) {
     emit isStreamingChanged();
 }
 
+void WebcamHandler::setSelectedWebcamIndex(int index) {
+    if (index < 0 || index >= m_webcamList.size() || index == m_selectedWebcamIndex) {
+        return;
+    }
+
+    qDebug() << "Selected webcam index:" << index;
+    m_selectedWebcamIndex = index;
+    emit selectedWebcamIndexChanged();
+
+    if (m_isStreaming) {
+        bool wasRecording = m_isRecording;
+        stopStreaming();
+        startStreaming();
+        if (wasRecording) {
+            startRecording();
+        }
+    }
+}
+
 GstFlowReturn WebcamHandler::onNewSample(GstAppSink *sink, gpointer user_data) {
     WebcamHandler *self = static_cast<WebcamHandler *>(user_data);
     GstSample *sample = gst_app_sink_pull_sample(sink);
@@ -237,8 +328,8 @@ void WebcamHandler::processSample(GstSample *sample) {
 
     // Expect RGB888: 3 bytes per pixel
     qint64 expected_size = static_cast<qint64>(vinfo.width) * vinfo.height * 3;
-    qDebug() << "Buffer size:" << map.size << ", expected:" << expected_size
-             << ", format:" << vinfo.finfo->name << ", width:" << vinfo.width << ", height:" << vinfo.height;
+    //qDebug() << "Buffer size:" << map.size << ", expected:" << expected_size
+    //         << ", format:" << vinfo.finfo->name << ", width:" << vinfo.width << ", height:" << vinfo.height;
     if (map.size < expected_size) {
         qWarning() << "Buffer size too small:" << map.size << ", expected:" << expected_size;
         gst_buffer_unmap(buffer, &map);
@@ -247,7 +338,7 @@ void WebcamHandler::processSample(GstSample *sample) {
     }
 
     if (m_videoItem) {
-        qDebug() << "Updating frame: width=" << vinfo.width << ", height=" << vinfo.height;
+        //qDebug() << "Updating frame: width=" << vinfo.width << ", height=" << vinfo.height;
         m_videoItem->updateFrame(map.data, vinfo.width, vinfo.height);
     }
 
