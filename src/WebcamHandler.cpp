@@ -166,7 +166,7 @@ void WebcamHandler::startRecording() {
         QString("mfvideosrc device-index=%1 ! video/x-raw,format=YUY2,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=I420 ! "
                 "tee name=t ! queue leaky=downstream ! x264enc tune=zerolatency key-int-max=30 ! matroskamux name=mux ! filesink location=recording.mkv "
                 "t. ! queue ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true "
-                "wasapisrc device=\"\\{0.0.1.00000000\\}.\\{684e7236-cfce-4757-9125-d37152c0079b\\}\" ! audioconvert ! volume volume=%2 ! avenc_aac bitrate=128000 ! queue ! mux.")
+                "wasapisrc ! audioconvert ! volume volume=%2 ! avenc_aac bitrate=128000 ! queue ! mux.")
             .arg(m_selectedWebcamIndex).arg(m_recordVolume).toUtf8().constData()
 #else
         QString("v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480 ! "
