@@ -12,7 +12,7 @@
 #endif
 
 WebcamHandler::WebcamHandler(QObject *parent)
-    : QObject(parent), pipeline(nullptr), appsink(nullptr), m_videoItem(nullptr), m_selectedWebcamIndex(0) {
+    : QObject(parent), pipeline(nullptr), appsink(nullptr), m_videoItem(nullptr), m_selectedWebcamIndex(0), m_recordVolume(1.0) {
     //g_setenv("GST_DEBUG", "4", TRUE);
     g_setenv("GST_PLUGIN_PATH", "C:/gstreamer/1.0/msvc_x86_64/lib/gstreamer-1.0;C:/CMakeBuildFolder/MediaCentre/build/Desktop_Qt_6_8_2_MSVC2022_64bit-Release/Release/gstreamer-1.0", TRUE);
     g_setenv("GST_PLUGIN_SYSTEM_PATH", "", TRUE); // Disable system-wide plugin scanning (removes warnings)
@@ -166,13 +166,14 @@ void WebcamHandler::startRecording() {
         QString("mfvideosrc device-index=%1 ! video/x-raw,format=YUY2,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=I420 ! "
                 "tee name=t ! queue leaky=downstream ! x264enc tune=zerolatency key-int-max=30 ! matroskamux name=mux ! filesink location=recording.mkv "
                 "t. ! queue ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true "
-                "wasapisrc device=\"\\{0.0.1.00000000\\}.\\{684e7236-cfce-4757-9125-d37152c0079b\\}\" ! audioconvert ! avenc_aac bitrate=128000 ! queue ! mux.")
-            .arg(m_selectedWebcamIndex).toUtf8().constData()
+                "wasapisrc device=\"\\{0.0.1.00000000\\}.\\{684e7236-cfce-4757-9125-d37152c0079b\\}\" ! audioconvert ! volume volume=%2 ! avenc_aac bitrate=128000 ! queue ! mux.")
+            .arg(m_selectedWebcamIndex).arg(m_recordVolume).toUtf8().constData()
 #else
-        "v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480 ! "
-        "tee name=t ! queue leaky=downstream ! x264enc tune=zerolatency key-int-max=30 ! matroskamux name=mux ! filesink location=recording.mkv "
-        "t. ! queue ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true "
-        "alsasrc ! audioconvert ! avenc_aac bitrate=128000 ! queue ! mux."
+        QString("v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480 ! "
+                "tee name=t ! queue leaky=downstream ! x264enc tune=zerolatency key-int-max=30 ! matroskamux name=mux ! filesink location=recording.mkv "
+                "t. ! queue ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true "
+                "alsasrc ! audioconvert ! volume volume=%1 ! avenc_aac bitrate=128000 ! queue ! mux.")
+            .arg(m_recordVolume).toUtf8().constData()
 #endif
         ;
 
@@ -286,6 +287,16 @@ void WebcamHandler::setSelectedWebcamIndex(int index) {
         if (wasRecording) {
             startRecording();
         }
+    }
+}
+
+void WebcamHandler::setRecordVolume(double volume) {
+    if (volume < 0.0) volume = 0.0;
+    if (volume > 4.0) volume = 4.0; // Cap at 4.0 to prevent excessive amplification
+    if (m_recordVolume != volume) {
+        m_recordVolume = volume;
+        qDebug() << "Record volume set to:" << m_recordVolume;
+        emit recordVolumeChanged();
     }
 }
 

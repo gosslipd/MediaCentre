@@ -133,6 +133,9 @@ ApplicationWindow {
         onIsRecordingChanged: {
             console.log("Recording state:", webcamHandler.isRecording)
         }
+        onRecordVolumeChanged: {
+            console.log("Record volume changed:", webcamHandler.recordVolume)
+        }
         Component.onCompleted: {
             webcamHandler.setVideoItem(videoItem)
         }
@@ -260,6 +263,57 @@ ApplicationWindow {
                 onPressed: console.log("Playback pressed")
                 onReleased: console.log("Playback released")
                 onClicked: webcamHandler.playback("recording.mkv")
+            }
+        }
+
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 10
+
+            Text {
+                text: "Record volume"
+                color: "white"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Slider {
+                id: volumeSlider
+                from: 0.0
+                to: 4.0
+                value: webcamHandler.recordVolume
+                stepSize: 0.1
+                width: 200
+                onValueChanged: {
+                    webcamHandler.setRecordVolume(value)
+                }
+
+                background: Rectangle {
+                    x: volumeSlider.leftPadding
+                    y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                    implicitWidth: 200
+                    implicitHeight: 4
+                    width: volumeSlider.availableWidth
+                    height: implicitHeight
+                    radius: 2
+                    color: "#444444"
+
+                    Rectangle {
+                        width: volumeSlider.visualPosition * parent.width
+                        height: parent.height
+                        color: "#666666"
+                        radius: 2
+                    }
+                }
+
+                handle: Rectangle {
+                    x: volumeSlider.leftPadding + volumeSlider.visualPosition * (volumeSlider.availableWidth - width)
+                    y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                    implicitWidth: 18
+                    implicitHeight: 18
+                    radius: 9
+                    color: volumeSlider.pressed ? "#555555" : "#666666"
+                    border.color: "#777777"
+                }
             }
         }
     }
