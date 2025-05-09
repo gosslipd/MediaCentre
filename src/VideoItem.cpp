@@ -4,7 +4,7 @@
 #include <QMutexLocker>
 #include <gst/video/video.h>
 
-VideoItem::VideoItem(QQuickItem *parent) : QQuickItem(parent), m_image(), m_smoothScaling(true) {
+VideoItem::VideoItem(QQuickItem *parent) : QQuickItem(parent), m_image(), m_smoothScaling(true), m_mirrorHorizontally(true) {
     setFlag(ItemHasContents, true);
 }
 
@@ -17,9 +17,24 @@ void VideoItem::setSmoothScaling(bool enabled) {
     }
 }
 
+void VideoItem::setMirrorHorizontally(bool enabled) {
+    if (m_mirrorHorizontally != enabled) {
+        m_mirrorHorizontally = enabled;
+        qDebug() << "Horizontal mirroring set to:" << m_mirrorHorizontally;
+        emit mirrorHorizontallyChanged();
+        update(); // Trigger repaint to apply new mirroring
+    }
+}
+
 void VideoItem::updateFrame(const uchar *data, int width, int height) {
     QMutexLocker locker(&m_mutex);
     QImage image(data, width, height, width * 3, QImage::Format_RGB888);
+
+    // Apply mirroring if enabled
+    if (m_mirrorHorizontally) {
+        image = image.mirrored(true, false);
+        //qDebug() << "Image mirrored horizontally";
+    }
 
     if (m_smoothScaling) {
         // Scale to match VideoItem size

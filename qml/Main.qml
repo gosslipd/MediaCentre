@@ -403,9 +403,12 @@ ApplicationWindow {
         VideoItem {
             id: videoItem
             width: parent.width
-            height: parent.height - 150 - titleBar.height
+            height: parent.height - 180 - titleBar.height // Adjusted for extra Row
             onSmoothScalingChanged: {
                 console.log("Smooth scaling:", videoItem.smoothScaling)
+            }
+            onMirrorHorizontallyChanged: {
+                console.log("Horizontal mirroring:", videoItem.mirrorHorizontally)
             }
         }
 
@@ -616,6 +619,52 @@ ApplicationWindow {
                 contentItem: Text {
                     text: ""
                     leftPadding: smoothScalingCheckBox.indicator.width + smoothScalingCheckBox.spacing
+                }
+            }
+        }
+
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 10
+
+            Text {
+                text: "Enable Horizontal Mirroring"
+                color: "white"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            CheckBox {
+                id: mirrorHorizontallyCheckBox
+                checked: videoItem.mirrorHorizontally
+                onCheckedChanged: {
+                    videoItem.mirrorHorizontally = checked
+                    console.log("Horizontal mirroring checkbox:", checked)
+                }
+
+                // Style CheckBox for dark theme
+                indicator: Rectangle {
+                    implicitWidth: 26
+                    implicitHeight: 26
+                    x: mirrorHorizontallyCheckBox.leftPadding
+                    y: parent.height / 2 - height / 2
+                    radius: 3
+                    border.color: "#666666"
+                    color: "#444444"
+
+                    Rectangle {
+                        width: 14
+                        height: 14
+                        x: 6
+                        y: 6
+                        radius: 2
+                        color: mirrorHorizontallyCheckBox.checked ? "#666666" : "#444444"
+                        visible: mirrorHorizontallyCheckBox.checked
+                    }
+                }
+
+                contentItem: Text {
+                    text: ""
+                    leftPadding: mirrorHorizontallyCheckBox.indicator.width + mirrorHorizontallyCheckBox.spacing
                 }
             }
         }
