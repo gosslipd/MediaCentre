@@ -109,6 +109,10 @@ void WebcamHandler::startStreaming() {
     if (!pipeline || error) {
         qCritical() << "Failed to create pipeline:" << (error ? error->message : "Unknown error");
         if (error) g_error_free(error);
+        if (pipeline) {
+            gst_object_unref(pipeline);
+            pipeline = nullptr;
+        }
         return;
     }
 
@@ -126,10 +130,10 @@ void WebcamHandler::startStreaming() {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         qCritical() << "Failed to start pipeline";
-        gst_object_unref(pipeline);
         gst_object_unref(appsink);
-        pipeline = nullptr;
+        gst_object_unref(pipeline);
         appsink = nullptr;
+        pipeline = nullptr;
         return;
     }
 
@@ -146,10 +150,12 @@ void WebcamHandler::stopStreaming() {
         gst_element_set_state(pipeline, GST_STATE_NULL);
         gst_object_unref(pipeline);
         pipeline = nullptr;
+        qDebug() << "Pipeline unreferenced";
     }
     if (appsink) {
         gst_object_unref(appsink);
         appsink = nullptr;
+        qDebug() << "Appsink unreferenced";
     }
     m_isStreaming = false;
     m_isRecording = false;
@@ -183,6 +189,10 @@ void WebcamHandler::startRecording() {
     if (!pipeline || error) {
         qCritical() << "Failed to create recording pipeline:" << (error ? error->message : "Unknown error");
         if (error) g_error_free(error);
+        if (pipeline) {
+            gst_object_unref(pipeline);
+            pipeline = nullptr;
+        }
         return;
     }
 
@@ -200,10 +210,10 @@ void WebcamHandler::startRecording() {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         qCritical() << "Failed to start recording";
-        gst_object_unref(pipeline);
         gst_object_unref(appsink);
-        pipeline = nullptr;
+        gst_object_unref(pipeline);
         appsink = nullptr;
+        pipeline = nullptr;
         return;
     }
 
@@ -242,6 +252,10 @@ void WebcamHandler::playback(const QString &filePath) {
     if (!pipeline || error) {
         qCritical() << "Failed to create playback pipeline:" << (error ? error->message : "Unknown error");
         if (error) g_error_free(error);
+        if (pipeline) {
+            gst_object_unref(pipeline);
+            pipeline = nullptr;
+        }
         return;
     }
 
@@ -259,10 +273,10 @@ void WebcamHandler::playback(const QString &filePath) {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         qCritical() << "Failed to start playback";
-        gst_object_unref(pipeline);
         gst_object_unref(appsink);
-        pipeline = nullptr;
+        gst_object_unref(pipeline);
         appsink = nullptr;
+        pipeline = nullptr;
         return;
     }
 
@@ -300,6 +314,15 @@ void WebcamHandler::setRecordVolume(double volume) {
     }
 }
 
+struct SampleDeleter {
+    void operator()(GstSample *sample) const {
+        if (sample) {
+            gst_sample_unref(sample);
+            qDebug() << "GstSample unreferenced";
+        }
+    }
+};
+
 GstFlowReturn WebcamHandler::onNewSample(GstAppSink *sink, gpointer user_data) {
     WebcamHandler *self = static_cast<WebcamHandler *>(user_data);
     GstSample *sample = gst_app_sink_pull_sample(sink);
@@ -308,10 +331,18 @@ GstFlowReturn WebcamHandler::onNewSample(GstAppSink *sink, gpointer user_data) {
         return GST_FLOW_ERROR;
     }
 
+    // Use RAII to ensure sample is unreferenced
+    std::unique_ptr<GstSample, SampleDeleter> sampleGuard(sample);
+
     // Post to GUI thread
-    QMetaObject::invokeMethod(self, [self, sample]() {
+    bool invoked = QMetaObject::invokeMethod(self, [self, sample = sampleGuard.get()]() {
         self->processSample(sample);
     }, Qt::QueuedConnection);
+
+    if (!invoked) {
+        qWarning() << "Failed to invoke processSample";
+        return GST_FLOW_ERROR;
+    }
 
     return GST_FLOW_OK;
 }
@@ -320,14 +351,12 @@ void WebcamHandler::processSample(GstSample *sample) {
     GstBuffer *buffer = gst_sample_get_buffer(sample);
     if (!buffer) {
         qWarning() << "No buffer in sample";
-        gst_sample_unref(sample);
         return;
     }
 
     GstMapInfo map;
     if (!gst_buffer_map(buffer, &map, GST_MAP_READ)) {
         qWarning() << "Failed to map buffer";
-        gst_sample_unref(sample);
         return;
     }
 
@@ -337,7 +366,6 @@ void WebcamHandler::processSample(GstSample *sample) {
     if (!gst_video_info_from_caps(&vinfo, caps)) {
         qWarning() << "Failed to get video info";
         gst_buffer_unmap(buffer, &map);
-        gst_sample_unref(sample);
         return;
     }
 
@@ -348,7 +376,6 @@ void WebcamHandler::processSample(GstSample *sample) {
     if (map.size < expected_size) {
         qWarning() << "Buffer size too small:" << map.size << ", expected:" << expected_size;
         gst_buffer_unmap(buffer, &map);
-        gst_sample_unref(sample);
         return;
     }
 
@@ -358,5 +385,5 @@ void WebcamHandler::processSample(GstSample *sample) {
     }
 
     gst_buffer_unmap(buffer, &map);
-    gst_sample_unref(sample);
 }
+
