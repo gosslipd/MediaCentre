@@ -11,6 +11,8 @@ ApplicationWindow {
     title: "Webcam Streamer"
     color: "#333333" // Dark grey background
     flags: Qt.FramelessWindowHint // Remove default system frame
+    minimumWidth: 400 // Minimum window width
+    minimumHeight: 300 // Minimum window height
 
     // Define a reusable StyledButton type
     component StyledButton: Button {
@@ -138,6 +140,258 @@ ApplicationWindow {
         }
         Component.onCompleted: {
             webcamHandler.setVideoItem(videoItem)
+        }
+    }
+
+    // Resizing MouseAreas
+    // Border width for resizing
+    property int resizeBorder: 5
+
+    // Left edge
+    MouseArea {
+        anchors.left: parent.left
+        anchors.top: titleBar.bottom
+        anchors.bottom: parent.bottom
+        width: resizeBorder
+        cursorShape: Qt.SizeHorCursor
+        property point lastMousePos: Qt.point(0, 0)
+        onPressed: function(mouse) {
+            lastMousePos = Qt.point(mouse.x, mouse.y)
+            mouse.accepted = true
+        }
+        onPositionChanged: function(mouse) {
+            if (pressed) {
+                var deltaX = mouse.x - lastMousePos.x
+                var newWidth = window.width - deltaX
+                if (newWidth >= window.minimumWidth) {
+                    window.x += deltaX
+                    window.width = newWidth
+                } else {
+                    window.x += window.width - window.minimumWidth
+                    window.width = window.minimumWidth
+                }
+                lastMousePos = Qt.point(mouse.x, mouse.y)
+            }
+        }
+    }
+
+    // Right edge
+    MouseArea {
+        anchors.right: parent.right
+        anchors.top: titleBar.bottom
+        anchors.bottom: parent.bottom
+        width: resizeBorder
+        cursorShape: Qt.SizeHorCursor
+        property point lastMousePos: Qt.point(0, 0)
+        onPressed: function(mouse) {
+            lastMousePos = Qt.point(mouse.x, mouse.y)
+            mouse.accepted = true
+        }
+        onPositionChanged: function(mouse) {
+            if (pressed) {
+                var deltaX = mouse.x - lastMousePos.x
+                var newWidth = window.width + deltaX
+                if (newWidth >= window.minimumWidth) {
+                    window.width = newWidth
+                } else {
+                    window.width = window.minimumWidth
+                }
+                lastMousePos = Qt.point(mouse.x, mouse.y)
+            }
+        }
+    }
+
+    // Top edge (below title bar)
+    MouseArea {
+        anchors.top: titleBar.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: resizeBorder
+        cursorShape: Qt.SizeVerCursor
+        property point lastMousePos: Qt.point(0, 0)
+        onPressed: function(mouse) {
+            lastMousePos = Qt.point(mouse.x, mouse.y)
+            mouse.accepted = true
+        }
+        onPositionChanged: function(mouse) {
+            if (pressed) {
+                var deltaY = mouse.y - lastMousePos.y
+                var newHeight = window.height - deltaY
+                if (newHeight >= window.minimumHeight) {
+                    window.y += deltaY
+                    window.height = newHeight
+                } else {
+                    window.y += window.height - window.minimumHeight
+                    window.height = window.minimumHeight
+                }
+                lastMousePos = Qt.point(mouse.x, mouse.y)
+            }
+        }
+    }
+
+    // Bottom edge
+    MouseArea {
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: resizeBorder
+        cursorShape: Qt.SizeVerCursor
+        property point lastMousePos: Qt.point(0, 0)
+        onPressed: function(mouse) {
+            lastMousePos = Qt.point(mouse.x, mouse.y)
+            mouse.accepted = true
+        }
+        onPositionChanged: function(mouse) {
+            if (pressed) {
+                var deltaY = mouse.y - lastMousePos.y
+                var newHeight = window.height + deltaY
+                if (newHeight >= window.minimumHeight) {
+                    window.height = newHeight
+                } else {
+                    window.height = window.minimumHeight
+                }
+                lastMousePos = Qt.point(mouse.x, mouse.y)
+            }
+        }
+    }
+
+    // Bottom-left corner
+    MouseArea {
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        width: resizeBorder
+        height: resizeBorder
+        cursorShape: Qt.SizeBDiagCursor
+        property point lastMousePos: Qt.point(0, 0)
+        onPressed: function(mouse) {
+            lastMousePos = Qt.point(mouse.x, mouse.y)
+            mouse.accepted = true
+        }
+        onPositionChanged: function(mouse) {
+            if (pressed) {
+                var deltaX = mouse.x - lastMousePos.x
+                var deltaY = mouse.y - lastMousePos.y
+                var newWidth = window.width - deltaX
+                var newHeight = window.height + deltaY
+                if (newWidth >= window.minimumWidth) {
+                    window.x += deltaX
+                    window.width = newWidth
+                } else {
+                    window.x += window.width - window.minimumWidth
+                    window.width = window.minimumWidth
+                }
+                if (newHeight >= window.minimumHeight) {
+                    window.height = newHeight
+                } else {
+                    window.height = window.minimumHeight
+                }
+                lastMousePos = Qt.point(mouse.x, mouse.y)
+            }
+        }
+    }
+
+    // Bottom-right corner
+    MouseArea {
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        width: resizeBorder
+        height: resizeBorder
+        cursorShape: Qt.SizeFDiagCursor
+        property point lastMousePos: Qt.point(0, 0)
+        onPressed: function(mouse) {
+            lastMousePos = Qt.point(mouse.x, mouse.y)
+            mouse.accepted = true
+        }
+        onPositionChanged: function(mouse) {
+            if (pressed) {
+                var deltaX = mouse.x - lastMousePos.x
+                var deltaY = mouse.y - lastMousePos.y
+                var newWidth = window.width + deltaX
+                var newHeight = window.height + deltaY
+                if (newWidth >= window.minimumWidth) {
+                    window.width = newWidth
+                } else {
+                    window.width = window.minimumWidth
+                }
+                if (newHeight >= window.minimumHeight) {
+                    window.height = newHeight
+                } else {
+                    window.height = window.minimumHeight
+                }
+                lastMousePos = Qt.point(mouse.x, mouse.y)
+            }
+        }
+    }
+
+    // Top-left corner
+    MouseArea {
+        anchors.left: parent.left
+        anchors.top: titleBar.bottom
+        width: resizeBorder
+        height: resizeBorder
+        cursorShape: Qt.SizeFDiagCursor
+        property point lastMousePos: Qt.point(0, 0)
+        onPressed: function(mouse) {
+            lastMousePos = Qt.point(mouse.x, mouse.y)
+            mouse.accepted = true
+        }
+        onPositionChanged: function(mouse) {
+            if (pressed) {
+                var deltaX = mouse.x - lastMousePos.x
+                var deltaY = mouse.y - lastMousePos.y
+                var newWidth = window.width - deltaX
+                var newHeight = window.height - deltaY
+                if (newWidth >= window.minimumWidth) {
+                    window.x += deltaX
+                    window.width = newWidth
+                } else {
+                    window.x += window.width - window.minimumWidth
+                    window.width = window.minimumWidth
+                }
+                if (newHeight >= window.minimumHeight) {
+                    window.y += deltaY
+                    window.height = newHeight
+                } else {
+                    window.y += window.height - window.minimumHeight
+                    window.height = window.minimumHeight
+                }
+                lastMousePos = Qt.point(mouse.x, mouse.y)
+            }
+        }
+    }
+
+    // Top-right corner
+    MouseArea {
+        anchors.right: parent.right
+        anchors.top: titleBar.bottom
+        width: resizeBorder
+        height: resizeBorder
+        cursorShape: Qt.SizeBDiagCursor
+        property point lastMousePos: Qt.point(0, 0)
+        onPressed: function(mouse) {
+            lastMousePos = Qt.point(mouse.x, mouse.y)
+            mouse.accepted = true
+        }
+        onPositionChanged: function(mouse) {
+            if (pressed) {
+                var deltaX = mouse.x - lastMousePos.x
+                var deltaY = mouse.y - lastMousePos.y
+                var newWidth = window.width + deltaX
+                var newHeight = window.height - deltaY
+                if (newWidth >= window.minimumWidth) {
+                    window.width = newWidth
+                } else {
+                    window.width = window.minimumWidth
+                }
+                if (newHeight >= window.minimumHeight) {
+                    window.y += deltaY
+                    window.height = newHeight
+                } else {
+                    window.y += window.height - window.minimumHeight
+                    window.height = window.minimumHeight
+                }
+                lastMousePos = Qt.point(mouse.x, mouse.y)
+            }
         }
     }
 
@@ -287,9 +541,7 @@ ApplicationWindow {
                 stepSize: 0.1
                 width: 200
                 onValueChanged: {
-                    webcamHandler.setRecordVolume
-
-(value)
+                    webcamHandler.setRecordVolume(value)
                 }
 
                 background: Rectangle {
