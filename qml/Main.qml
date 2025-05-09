@@ -1,13 +1,16 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Fusion // Use Fusion style for customization
 import MediaCentre 1.0
 
 ApplicationWindow {
+    id: window
     visible: true
     width: 800
     height: 600
     title: "Webcam Streamer"
     color: "#333333" // Dark grey background
+    flags: Qt.FramelessWindowHint // Remove default system frame
 
     // Define a reusable StyledButton type
     component StyledButton: Button {
@@ -19,10 +22,106 @@ ApplicationWindow {
         }
 
         background: Rectangle {
-            color: "#444444" // Dark grey background
+            color: parent.hovered ? "#555555" : "#444444" // Lighter grey on hover
             border.color: "#666666"
             border.width: 1
             radius: 10 // Rounded corners
+        }
+    }
+
+    // Custom window frame (border)
+    Rectangle {
+        anchors.fill: parent
+        color: "transparent"
+        border.color: "#666666" // Match button border color
+        border.width: 1
+    }
+
+    // Custom title bar
+    Rectangle {
+        id: titleBar
+        width: parent.width
+        height: 40
+        color: "#444444" // Match button background
+        anchors.top: parent.top
+
+        // Title text
+        Text {
+            text: window.title
+            color: "white"
+            anchors.left: parent.left
+            anchors.leftMargin: 10
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        // Window control buttons
+        Row {
+            id: buttonRow
+            anchors.right: parent.right
+            anchors.rightMargin: 10
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 5
+
+            StyledButton {
+                text: "−" // Minimize
+                width: 35
+                height: 35
+                onPressed: console.log("Minimize pressed")
+                onReleased: console.log("Minimize released")
+                onClicked: {
+                    console.log("Minimize clicked")
+                    window.showMinimized()
+                }
+            }
+
+            StyledButton {
+                text: window.visibility === Window.Maximized ? "🗗" : "🗖" // Maximize/Restore
+                width: 35
+                height: 35
+                onPressed: console.log("Maximize pressed")
+                onReleased: console.log("Maximize released")
+                onClicked: {
+                    console.log("Maximize/Restore clicked, current visibility:", window.visibility)
+                    if (window.visibility === Window.Maximized) {
+                        window.showNormal()
+                    } else {
+                        window.showMaximized()
+                    }
+                }
+            }
+
+            StyledButton {
+                text: "✕" // Close
+                width: 35
+                height: 35
+                onPressed: console.log("Close pressed")
+                onReleased: console.log("Close released")
+                onClicked: {
+                    console.log("Close clicked")
+                    Qt.quit()
+                }
+            }
+        }
+
+        // Dragging functionality (exclude button area)
+        MouseArea {
+            anchors.left: parent.left
+            anchors.right: buttonRow.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            property point lastMousePos: Qt.point(0, 0)
+            onPressed: function(mouse) {
+                lastMousePos = Qt.point(mouse.x, mouse.y)
+                mouse.accepted = true
+            }
+            onPositionChanged: function(mouse) {
+                if (pressed) {
+                    var deltaX = mouse.x - lastMousePos.x
+                    var deltaY = mouse.y - lastMousePos.y
+                    window.x += deltaX
+                    window.y += deltaY
+                }
+            }
         }
     }
 
@@ -41,12 +140,13 @@ ApplicationWindow {
 
     Column {
         anchors.fill: parent
+        anchors.topMargin: titleBar.height // Offset for title bar
         spacing: 10
 
         VideoItem {
             id: videoItem
             width: parent.width
-            height: parent.height - 150
+            height: parent.height - 150 - titleBar.height
         }
 
         Row {
@@ -134,23 +234,31 @@ ApplicationWindow {
 
             StyledButton {
                 text: webcamHandler.isStreaming ? "Stop Streaming" : "Start Streaming"
+                onPressed: console.log("Streaming button pressed")
+                onReleased: console.log("Streaming button released")
                 onClicked: webcamHandler.isStreaming ? webcamHandler.stopStreaming() : webcamHandler.startStreaming()
             }
 
             StyledButton {
                 text: "Start Recording"
                 enabled: webcamHandler.isStreaming && !webcamHandler.isRecording
+                onPressed: console.log("Start Recording pressed")
+                onReleased: console.log("Start Recording released")
                 onClicked: webcamHandler.startRecording()
             }
 
             StyledButton {
                 text: "Stop Recording"
                 enabled: webcamHandler.isRecording
+                onPressed: console.log("Stop Recording pressed")
+                onReleased: console.log("Stop Recording released")
                 onClicked: webcamHandler.stopRecording()
             }
 
             StyledButton {
                 text: "Playback Recording"
+                onPressed: console.log("Playback pressed")
+                onReleased: console.log("Playback released")
                 onClicked: webcamHandler.playback("recording.mkv")
             }
         }
