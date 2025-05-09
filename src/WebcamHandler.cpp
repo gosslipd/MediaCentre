@@ -318,7 +318,6 @@ struct SampleDeleter {
     void operator()(GstSample *sample) const {
         if (sample) {
             gst_sample_unref(sample);
-            qDebug() << "GstSample unreferenced";
         }
     }
 };
@@ -386,4 +385,3 @@ void WebcamHandler::processSample(GstSample *sample) {
 
     gst_buffer_unmap(buffer, &map);
 }
-
