@@ -225,9 +225,13 @@ void WebcamHandler::playback(const QString &filePath) {
 
     QString pipeline_str = QString(
 #ifdef Q_OS_WIN
-                               "filesrc location=%1 ! matroskademux ! decodebin ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true"
+                               "filesrc location=%1 ! matroskademux name=demux "
+                               "demux. ! queue ! decodebin name=video_decoder ! videoconvert ! video/x-raw,format=RGB ! appsink name=appsink emit-signals=true "
+                               "demux. ! queue ! decodebin name=audio_decoder ! audioconvert ! autoaudiosink"
 #else
-                               "filesrc location=%1 ! matroskademux ! decodebin ! videoconvert ! video/x-raw,format=RGB ! queue ! appsink name=appsink emit-signals=true"
+                               "filesrc location=%1 ! matroskademux name=demux "
+                               "demux. ! queue ! decodebin name=video_decoder ! videoconvert ! video/x-raw,format=RGB ! appsink name=appsink emit-signals=true "
+                               "demux. ! queue ! decodebin name=audio_decoder ! audioconvert ! autoaudiosink"
 #endif
                                ).arg(filePath);
 
