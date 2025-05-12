@@ -1,8 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Fusion
-import MediaCentre 1.0
-import "../../qml/components" // Import components directory
+import "../../qml/components"
 
 ApplicationWindow {
     id: window
@@ -15,23 +14,6 @@ ApplicationWindow {
     minimumWidth: 400
     minimumHeight: 300
 
-    // Define StyledButton (kept for consistency, though not used here)
-    component StyledButton: Button {
-        contentItem: Text {
-            text: parent.text
-            color: "white"
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
-
-        background: Rectangle {
-            color: parent.hovered ? "#555555" : "#444444"
-            border.color: "#666666"
-            border.width: 1
-            radius: 10
-        }
-    }
-
     // Custom window frame (border)
     Rectangle {
         anchors.fill: parent
@@ -41,100 +23,12 @@ ApplicationWindow {
     }
 
     // Custom title bar
-    Rectangle {
-        id: titleBar
+    MainToolbar {
+        id: mainToolbar
         width: parent.width
-        height: 40
-        color: "#444444"
-        anchors.top: parent.top
-
-        // Title text
-        Text {
-            text: window.title
-            color: "white"
-            anchors.left: parent.left
-            anchors.leftMargin: 10
-            anchors.verticalCenter: parent.verticalCenter
-        }
-
-        // Window control buttons
-        Row {
-            id: buttonRow
-            anchors.right: parent.right
-            anchors.rightMargin: 10
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 5
-
-            StyledButton {
-                text: "−"
-                width: 35
-                height: 35
-                onPressed: console.log("Minimize pressed")
-                onReleased: console.log("Minimize released")
-                onClicked: {
-                    console.log("Minimize clicked")
-                    window.showMinimized()
-                }
-            }
-
-            StyledButton {
-                text: window.visibility === Window.Maximized ? "🗗" : "🗖"
-                width: 35
-                height: 35
-                onPressed: console.log("Maximize pressed")
-                onReleased: console.log("Maximize released")
-                onClicked: {
-                    console.log("Maximize/Restore clicked, current visibility:", window.visibility)
-                    if (window.visibility === Window.Maximized) {
-                        window.showNormal()
-                    } else {
-                        window.showMaximized()
-                    }
-                }
-            }
-
-            StyledButton {
-                text: "✕"
-                width: 35
-                height: 35
-                onPressed: console.log("Close pressed")
-                onReleased: console.log("Close released")
-                onClicked: {
-                    console.log("Close clicked")
-                    Qt.quit()
-                }
-            }
-        }
-
-        // Dragging functionality (exclude button area and top resize border)
-        MouseArea {
-            anchors.left: parent.left
-            anchors.right: buttonRow.left
-            anchors.top: parent.top
-            anchors.topMargin: resizeBorder
-            anchors.bottom: parent.bottom
-            property point lastMousePos: Qt.point(0, 0)
-            onPressed: function(mouse) {
-                lastMousePos = Qt.point(mouse.x, mouse.y)
-                mouse.accepted = true
-            }
-            onPositionChanged: function(mouse) {
-                if (pressed) {
-                    var deltaX = mouse.x - lastMousePos.x
-                    var deltaY = mouse.y - lastMousePos.y
-                    window.x += deltaX
-                    window.y += deltaY
-                }
-            }
-            onDoubleClicked: {
-                console.log("Title bar double-clicked, current visibility:", window.visibility)
-                if (window.visibility === Window.Maximized) {
-                    window.showNormal()
-                } else {
-                    window.showMaximized()
-                }
-            }
-        }
+        title: window.title
+        window: window
+        resizeBorder: resizeBorder
     }
 
     // Resizing MouseAreas
@@ -398,6 +292,6 @@ ApplicationWindow {
 
     MainContent {
         anchors.fill: parent
-        titleBarHeight: titleBar.height
+        toolbarHeight: mainToolbar.height
     }
 }

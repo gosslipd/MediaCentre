@@ -7,8 +7,8 @@ Item {
     id: mainContent
     anchors.fill: parent
 
-    // Property for title bar height
-    property real titleBarHeight: 0
+    // Property for toolbar height
+    property real toolbarHeight: 0
 
     // WebcamHandler instance
     WebcamHandler {
@@ -46,13 +46,13 @@ Item {
 
     Column {
         anchors.fill: parent
-        anchors.topMargin: titleBarHeight
+        anchors.topMargin: toolbarHeight
         spacing: 10
 
         VideoItem {
             id: videoItem
             width: parent.width
-            height: parent.height - 180 - titleBarHeight
+            height: parent.height - 180 - toolbarHeight
             onSmoothScalingChanged: {
                 console.log("Smooth scaling:", videoItem.smoothScaling)
             }

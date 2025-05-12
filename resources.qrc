@@ -4,5 +4,6 @@
     </qresource>
     <qresource prefix="/">
         <file>qml/components/MainContent.qml</file>
+        <file>qml/components/MainToolbar.qml</file>
     </qresource>
 </RCC>
