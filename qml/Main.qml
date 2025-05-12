@@ -105,11 +105,12 @@ ApplicationWindow {
             }
         }
 
-        // Dragging functionality (exclude button area)
+        // Dragging functionality (exclude button area and top resize border)
         MouseArea {
             anchors.left: parent.left
             anchors.right: buttonRow.left
             anchors.top: parent.top
+            anchors.topMargin: resizeBorder // Avoid overlapping top resize border
             anchors.bottom: parent.bottom
             property point lastMousePos: Qt.point(0, 0)
             onPressed: function(mouse) {
@@ -122,6 +123,14 @@ ApplicationWindow {
                     var deltaY = mouse.y - lastMousePos.y
                     window.x += deltaX
                     window.y += deltaY
+                }
+            }
+            onDoubleClicked: {
+                console.log("Title bar double-clicked, current visibility:", window.visibility)
+                if (window.visibility === Window.Maximized) {
+                    window.showNormal()
+                } else {
+                    window.showMaximized()
                 }
             }
         }
@@ -150,10 +159,11 @@ ApplicationWindow {
     // Left edge
     MouseArea {
         anchors.left: parent.left
-        anchors.top: titleBar.bottom
+        anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: resizeBorder
         cursorShape: Qt.SizeHorCursor
+        z: 1 // Ensure above title bar
         property point lastMousePos: Qt.point(0, 0)
         onPressed: function(mouse) {
             lastMousePos = Qt.point(mouse.x, mouse.y)
@@ -178,10 +188,11 @@ ApplicationWindow {
     // Right edge
     MouseArea {
         anchors.right: parent.right
-        anchors.top: titleBar.bottom
+        anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: resizeBorder
         cursorShape: Qt.SizeHorCursor
+        z: 1 // Ensure above title bar
         property point lastMousePos: Qt.point(0, 0)
         onPressed: function(mouse) {
             lastMousePos = Qt.point(mouse.x, mouse.y)
@@ -201,13 +212,14 @@ ApplicationWindow {
         }
     }
 
-    // Top edge (below title bar)
+    // Top edge
     MouseArea {
-        anchors.top: titleBar.bottom
+        anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         height: resizeBorder
         cursorShape: Qt.SizeVerCursor
+        z: 1 // Ensure above title bar
         property point lastMousePos: Qt.point(0, 0)
         onPressed: function(mouse) {
             lastMousePos = Qt.point(mouse.x, mouse.y)
@@ -236,6 +248,7 @@ ApplicationWindow {
         anchors.right: parent.right
         height: resizeBorder
         cursorShape: Qt.SizeVerCursor
+        z: 1 // Ensure above title bar
         property point lastMousePos: Qt.point(0, 0)
         onPressed: function(mouse) {
             lastMousePos = Qt.point(mouse.x, mouse.y)
@@ -262,6 +275,7 @@ ApplicationWindow {
         width: resizeBorder
         height: resizeBorder
         cursorShape: Qt.SizeBDiagCursor
+        z: 1 // Ensure above title bar
         property point lastMousePos: Qt.point(0, 0)
         onPressed: function(mouse) {
             lastMousePos = Qt.point(mouse.x, mouse.y)
@@ -297,6 +311,7 @@ ApplicationWindow {
         width: resizeBorder
         height: resizeBorder
         cursorShape: Qt.SizeFDiagCursor
+        z: 1 // Ensure above title bar
         property point lastMousePos: Qt.point(0, 0)
         onPressed: function(mouse) {
             lastMousePos = Qt.point(mouse.x, mouse.y)
@@ -326,10 +341,11 @@ ApplicationWindow {
     // Top-left corner
     MouseArea {
         anchors.left: parent.left
-        anchors.top: titleBar.bottom
+        anchors.top: parent.top
         width: resizeBorder
         height: resizeBorder
         cursorShape: Qt.SizeFDiagCursor
+        z: 1 // Ensure above title bar
         property point lastMousePos: Qt.point(0, 0)
         onPressed: function(mouse) {
             lastMousePos = Qt.point(mouse.x, mouse.y)
@@ -353,7 +369,7 @@ ApplicationWindow {
                     window.height = newHeight
                 } else {
                     window.y += window.height - window.minimumHeight
-                    window.height = window.minimumHeight
+                    window.height = newHeight
                 }
                 lastMousePos = Qt.point(mouse.x, mouse.y)
             }
@@ -363,10 +379,11 @@ ApplicationWindow {
     // Top-right corner
     MouseArea {
         anchors.right: parent.right
-        anchors.top: titleBar.bottom
+        anchors.top: parent.top
         width: resizeBorder
         height: resizeBorder
         cursorShape: Qt.SizeBDiagCursor
+        z: 1 // Ensure above title bar
         property point lastMousePos: Qt.point(0, 0)
         onPressed: function(mouse) {
             lastMousePos = Qt.point(mouse.x, mouse.y)
@@ -388,7 +405,7 @@ ApplicationWindow {
                     window.height = newHeight
                 } else {
                     window.y += window.height - window.minimumHeight
-                    window.height = window.minimumHeight
+                    window.height = newHeight
                 }
                 lastMousePos = Qt.point(mouse.x, mouse.y)
             }
