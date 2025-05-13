@@ -4,12 +4,15 @@ import QtQuick.Controls.Fusion
 
 Item {
     id: mainToolbar
-    height: 40 // Match original title bar height
+    height: 40
 
-    // Properties to expose window title, window object, and resize border
+    // Properties to expose window title, window object, resize border, and button visibility
     property string title: ""
     property var window: null
     property int resizeBorder: 0
+    property bool showMinimizeButton: true
+    property bool showMaximizeButton: true
+    property bool showCloseButton: true
 
     // Define StyledButton
     component StyledButton: Button {
@@ -51,6 +54,7 @@ Item {
             spacing: 5
 
             StyledButton {
+                visible: showMinimizeButton
                 text: "−"
                 width: 35
                 height: 35
@@ -65,6 +69,7 @@ Item {
             }
 
             StyledButton {
+                visible: showMaximizeButton
                 text: mainToolbar.window && mainToolbar.window.visibility === Window.Maximized ? "🗗" : "🗖"
                 width: 35
                 height: 35
@@ -83,6 +88,7 @@ Item {
             }
 
             StyledButton {
+                visible: showCloseButton
                 text: "✕"
                 width: 35
                 height: 35
@@ -90,7 +96,9 @@ Item {
                 onReleased: console.log("Close released")
                 onClicked: {
                     console.log("Close clicked")
-                    Qt.quit()
+                    if (mainToolbar.window) {
+                        mainToolbar.window.close()
+                    }
                 }
             }
         }
@@ -117,7 +125,7 @@ Item {
             }
             onDoubleClicked: {
                 console.log("Toolbar double-clicked, current visibility:", mainToolbar.window ? mainToolbar.window.visibility : "null")
-                if (mainToolbar.window) {
+                if (mainToolbar.window && showMaximizeButton) {
                     if (mainToolbar.window.visibility === Window.Maximized) {
                         mainToolbar.window.showNormal()
                     } else {

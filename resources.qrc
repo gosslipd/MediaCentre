@@ -5,5 +5,8 @@
     <qresource prefix="/">
         <file>qml/components/MainContent.qml</file>
         <file>qml/components/MainToolbar.qml</file>
+        <file>qml/components/CustomisedWindow.qml</file>
+        <file>qml/components/CustomisedApplicationWindow.qml</file>
+        <file>qml/components/ConfigDialog.qml</file>
     </qresource>
 </RCC>

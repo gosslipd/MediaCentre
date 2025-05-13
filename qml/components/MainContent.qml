@@ -65,6 +65,19 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 10
 
+            StyledButton {
+                text: "Open Config"
+                onClicked: {
+                    var component = Qt.createComponent("qrc:/qml/components/ConfigDialog.qml")
+                    if (component.status === Component.Ready) {
+                        var dialog = component.createObject(null)
+                        dialog.show()
+                    } else {
+                        console.error("Error loading ConfigDialog:", component.errorString())
+                    }
+                }
+            }
+
             ComboBox {
                 id: webcamCombo
                 model: webcamHandler.webcamList
