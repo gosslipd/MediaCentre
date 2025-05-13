@@ -19,12 +19,33 @@ ApplicationWindow {
     property string title: ""
     property real toolbarHeight: showToolbar ? toolbarLoader.height : 0
 
+    // Reference to MainContent's dialogs list
+    property var dialogs: mainContent ? mainContent.dialogs : []
+
+    // Handle window closing
+    onClosing: {
+        console.log("Main window closing, closing", dialogs.length, "dialogs")
+        for (var i = 0; i < dialogs.length; ++i) {
+            if (dialogs[i]) {
+                dialogs[i].close()
+            }
+        }
+        dialogs = [] // Clear the list
+    }
+
     // Custom window frame (border)
     Rectangle {
         anchors.fill: parent
         color: "transparent"
-        border.color: "#555555"
-        border.width: 2
+        border.color: "#444444"
+        border.width: 1
+    }
+
+    // Main content
+    MainContent {
+        id: mainContent
+        anchors.fill: parent
+        toolbarHeight: appWindow.toolbarHeight
     }
 
     // Toolbar (loaded dynamically)

@@ -13,9 +13,4 @@ CustomisedApplicationWindow {
     showCloseButton: true
     showToolbar: true
     resizeEnabled: true
-
-    MainContent {
-        anchors.fill: parent
-        toolbarHeight: window.toolbarHeight
-    }
 }

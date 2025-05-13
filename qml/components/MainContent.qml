@@ -10,6 +10,9 @@ Item {
     // Property for toolbar height
     property real toolbarHeight: 0
 
+    // List to track open dialogs
+    property var dialogs: []
+
     // WebcamHandler instance
     WebcamHandler {
         id: webcamHandler
@@ -34,6 +37,7 @@ Item {
             color: "white"
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight // Handle long text
         }
 
         background: Rectangle {
@@ -42,11 +46,14 @@ Item {
             border.width: 1
             radius: 10
         }
+        width: 90 // Reduced from 120 to fit window
+        height: 35
     }
 
     Column {
         anchors.fill: parent
         anchors.topMargin: toolbarHeight
+        anchors.margins: 10 // Added for padding
         spacing: 10
 
         VideoItem {
@@ -71,7 +78,16 @@ Item {
                     var component = Qt.createComponent("qrc:/qml/components/ConfigDialog.qml")
                     if (component.status === Component.Ready) {
                         var dialog = component.createObject(null)
+                        dialogs.push(dialog)
+                        dialog.onClosing.connect(function() {
+                            var index = dialogs.indexOf(dialog)
+                            if (index !== -1) {
+                                dialogs.splice(index, 1)
+                                console.log("Dialog closed, total dialogs:", dialogs.length)
+                            }
+                        })
                         dialog.show()
+                        console.log("Dialog opened, total dialogs:", dialogs.length)
                     } else {
                         console.error("Error loading ConfigDialog:", component.errorString())
                     }
@@ -86,12 +102,14 @@ Item {
                     webcamHandler.setSelectedWebcamIndex(currentIndex)
                 }
                 width: 200
+                height: 35
 
                 contentItem: Text {
                     text: webcamCombo.displayText
                     color: "white"
                     verticalAlignment: Text.AlignVCenter
                     leftPadding: 10
+                    elide: Text.ElideRight
                 }
 
                 background: Rectangle {
@@ -148,6 +166,7 @@ Item {
                         text: modelData
                         color: "white"
                         verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
                     }
                     background: Rectangle {
                         color: highlighted ? "#555555" : "#444444"
@@ -156,14 +175,14 @@ Item {
             }
 
             StyledButton {
-                text: webcamHandler.isStreaming ? "Stop Streaming" : "Start Streaming"
+                text: webcamHandler.isStreaming ? "Stop Stream" : "Start Stream" // Shortened text
                 onPressed: console.log("Streaming button pressed")
                 onReleased: console.log("Streaming button released")
                 onClicked: webcamHandler.isStreaming ? webcamHandler.stopStreaming() : webcamHandler.startStreaming()
             }
 
             StyledButton {
-                text: "Start Recording"
+                text: "Start Record"
                 enabled: webcamHandler.isStreaming && !webcamHandler.isRecording
                 onPressed: console.log("Start Recording pressed")
                 onReleased: console.log("Start Recording released")
@@ -171,7 +190,7 @@ Item {
             }
 
             StyledButton {
-                text: "Stop Recording"
+                text: "Stop Record"
                 enabled: webcamHandler.isRecording
                 onPressed: console.log("Stop Recording pressed")
                 onReleased: console.log("Stop Recording released")
@@ -179,7 +198,7 @@ Item {
             }
 
             StyledButton {
-                text: "Playback Recording"
+                text: "Play Record"
                 onPressed: console.log("Playback pressed")
                 onReleased: console.log("Playback released")
                 onClicked: webcamHandler.playback("recording.mkv")
@@ -289,7 +308,7 @@ Item {
             Text {
                 text: "Enable Horizontal Mirroring"
                 color: "white"
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenter: parent.horizontalCenter
             }
 
             CheckBox {
